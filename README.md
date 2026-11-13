@@ -19,6 +19,19 @@
 
 默认监听 8080 端口。默认的 data 目录存放截图组和图片。备份时停止服务并复制整个目录。请用同一个服务实例访问同一数据目录。
 
+## Docker 部署
+
+在项目目录执行 `docker compose up -d --build`。服务通过主机的 `8100` 端口访问。截图和组信息存放在 Compose 的 `screenshots` 数据卷，容器重建后继续使用同一个卷。
+
+可以在服务器的项目目录创建 `.env`，通过 `BIND_IP` 指定 Ubuntu 要监听的网卡地址。将 `CHAT_SCREENSHOTS_ACCESS_URL` 设为用户访问的完整 URL 后，页面的「手机访问」会显示这个地址。
+
+NAS 可参考 `deploy/nginx.conf.example`，将监听地址改为 NAS 的局域网地址，`proxy_pass` 指向 Ubuntu 的 `8100`。将配置保存到 NAS 的 `~/chat-screenshots-nginx/nginx.conf` 后，在 NAS 上执行：
+
+    nginx -t -e "$HOME/chat-screenshots-nginx/error.log" -p "$HOME/chat-screenshots-nginx/" -c nginx.conf
+    nginx -e "$HOME/chat-screenshots-nginx/error.log" -p "$HOME/chat-screenshots-nginx/" -c nginx.conf
+
+这会启动独立的 Nginx 实例。NAS 重启后可重新运行第二条命令，或通过 DSM 任务计划程序为该命令创建开机任务。
+
 ## 使用
 
 1. 新建截图组，填写组名和日期。

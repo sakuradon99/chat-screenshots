@@ -1,0 +1,17 @@
+services:
+  chat-screenshots:
+    build: .
+    image: chat-screenshots:local
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-0.0.0.0}:8100:8080"
+    environment:
+      CHAT_SCREENSHOTS_ACCESS_URL: "${CHAT_SCREENSHOTS_ACCESS_URL:-}"
+    volumes:
+      - screenshots:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+volumes:
+  screenshots:

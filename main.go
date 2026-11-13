@@ -63,12 +63,13 @@ type state struct {
 }
 
 type app struct {
-	mu      sync.Mutex
-	state   state
-	dir     string
-	port    string
-	uploads chan struct{}
-	exports chan struct{}
+	mu        sync.Mutex
+	state     state
+	dir       string
+	port      string
+	accessURL string
+	uploads   chan struct{}
+	exports   chan struct{}
 }
 
 type clientError struct {
@@ -99,6 +100,7 @@ func main() {
 	}
 	boundHost, port, _ := net.SplitHostPort(listener.Addr().String())
 	a.port = port
+	a.accessURL = os.Getenv("CHAT_SCREENSHOTS_ACCESS_URL")
 	desktopHost := boundHost
 	if ip := net.ParseIP(boundHost); ip != nil && ip.IsUnspecified() {
 		desktopHost = "127.0.0.1"
@@ -231,6 +233,9 @@ func (a *app) handler() http.Handler {
 }
 
 func (a *app) lanURLs() []string {
+	if a.accessURL != "" {
+		return []string{a.accessURL}
+	}
 	urls := []string{}
 	interfaces, _ := net.Interfaces()
 	for _, nic := range interfaces {

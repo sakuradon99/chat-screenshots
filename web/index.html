@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f2">
+  <title>叠图 · 聊天截图工作台</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 17h2"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4m-4 4 4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14 6 4 4M5 19l4-.8L20 7a1.4 1.4 0 0 0 0-2l-1-1a1.4 1.4 0 0 0-2 0L6 15l-1 4Z"/></symbol>
+    <symbol id="i-crop" viewBox="0 0 24 24"><path d="M7 3v14h14M3 7h14v14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16m-14 0 1 13h10l1-13M9 7V4h6v3m-5 4v5m4-5v5"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-5 5 5-5 5 5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14m-5-5 5 5 5-5"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="叠图首页">
+        <span class="brand-mark"><svg class="icon"><use href="#i-stack"/></svg></span>
+        <span>叠图 <small>聊天截图工作台</small></span>
+      </a>
+      <div class="header-actions">
+        <span id="sync" class="sync" data-state="pending" role="status"><span></span><span id="sync-text">连接中</span></span>
+        <button type="button" class="button phone-button" id="phone"><svg class="icon"><use href="#i-phone"/></svg>手机访问</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar" aria-label="截图组">
+      <div class="sidebar-head">
+        <h2>截图组</h2>
+        <button type="button" class="button sidebar-new" id="new-group"><svg class="icon"><use href="#i-plus"/></svg>新建组</button>
+      </div>
+      <nav id="groups" class="groups" aria-label="选择截图组"></nav>
+      <select id="group-picker" aria-label="选择截图组" hidden></select>
+    </aside>
+
+    <section id="no-group" class="workspace blank" aria-labelledby="blank-title">
+      <div class="blank-content">
+        <div class="paper-art" aria-hidden="true">
+          <div class="paper-back"></div>
+          <div class="paper-front"><i></i><i></i><i></i><i></i></div>
+          <span class="paper-plus">+</span>
+        </div>
+        <h1 id="blank-title">把聊天截图拼成一张长图</h1>
+        <p id="blank-copy">新建一个截图组，就可以上传、排序和导出。</p>
+        <button type="button" class="button primary" id="start-group"><svg class="icon"><use href="#i-plus"/></svg>新建截图组</button>
+      </div>
+    </section>
+
+    <section id="workspace" class="workspace" aria-labelledby="group-title" hidden>
+      <div class="workspace-head">
+        <div class="group-meta">
+          <p id="group-date" class="date"></p>
+          <div class="title-line">
+            <h1 id="group-title"></h1>
+            <button type="button" id="edit" class="icon-button" aria-label="编辑截图组" title="编辑截图组"><svg class="icon"><use href="#i-edit"/></svg></button>
+          </div>
+        </div>
+        <button type="button" class="button" id="upload"><svg class="icon"><use href="#i-upload"/></svg>上传图片</button>
+        <input type="file" id="file-input" multiple accept="image/*,.heic,.heif" hidden>
+      </div>
+
+      <div class="export-panel">
+        <div class="export-meta">
+          <label for="width">导出宽度</label>
+          <div class="width-field"><input type="number" id="width" min="1" max="4096" step="1" value="1080" inputmode="numeric" required><span>px</span></div>
+          <span id="dimensions" class="dimensions"></span>
+        </div>
+        <button type="button" class="button primary" id="export"><svg class="icon"><use href="#i-download"/></svg><span>导出长图</span></button>
+      </div>
+      <p class="upload-status" id="upload-status" role="status" hidden></p>
+
+      <section id="image-zone" class="image-zone" aria-labelledby="images-title">
+        <div class="images-head">
+          <h2 id="images-title">图片顺序 <span id="image-count" class="image-count"></span></h2>
+          <div class="image-tools">
+            <p id="order-hint" hidden>拖动或点序号调整位置</p>
+            <button type="button" class="button" id="crop-button" aria-describedby="crop-status" disabled><svg class="icon"><use href="#i-crop"/></svg><span>批量裁切</span></button>
+          </div>
+        </div>
+        <p id="crop-status" class="crop-status" hidden></p>
+        <button type="button" id="drop-empty" class="drop-empty">
+          <span class="upload-mark"><svg class="icon"><use href="#i-upload"/></svg></span>
+          <strong>添加聊天截图</strong>
+          <span class="desktop-hint">点击选择，也可以把图片拖到这里</span>
+          <span class="mobile-hint">从手机相册或文件中选择</span>
+        </button>
+        <ol id="images" class="image-grid"></ol>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <dialog id="group-dialog">
+    <form id="group-form" class="dialog-body">
+      <div class="dialog-head"><h2 id="group-dialog-title">新建截图组</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label for="name">组名</label>
+      <input id="name" name="name" type="text" placeholder="例如 周末聊天" maxlength="80" required autofocus>
+      <label for="date">日期</label>
+      <input id="date" name="date" type="date" required>
+      <div class="dialog-actions">
+        <button type="button" id="delete-group" class="button danger" hidden>删除组</button>
+        <button type="button" class="button" data-close>取消</button>
+        <button type="submit" class="button primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="access-dialog">
+    <div class="dialog-body">
+      <div class="dialog-head"><h2>手机访问</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <p>手机和电脑连接同一局域网后，在手机浏览器里打开下方地址。</p>
+      <div id="addresses" class="addresses"></div>
+    </div>
+  </dialog>
+
+  <dialog id="move-dialog">
+    <form id="move-form" class="dialog-body">
+      <div class="dialog-head"><h2>调整图片位置</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label for="position">移到第几张</label>
+      <input id="position" type="number" inputmode="numeric" min="1" step="1" required autofocus>
+      <div class="dialog-actions"><button type="button" class="button" data-close>取消</button><button type="submit" class="button primary">移动</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="preview-dialog" class="preview-dialog">
+    <div class="dialog-head"><h2 id="preview-name">图片预览</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <img id="preview-image" alt="">
+  </dialog>
+  <dialog id="crop-dialog" class="crop-dialog" aria-labelledby="crop-title">
+    <form id="crop-form" class="dialog-body">
+      <div class="dialog-head"><h2 id="crop-title">批量裁切</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <p>在第一张图上拖出要保留的区域，也可以输入像素坐标。</p>
+      <div class="crop-stage">
+        <div id="crop-surface" class="crop-surface">
+          <img id="crop-image" alt="第一张截图原图" draggable="false">
+          <div id="crop-box" class="crop-box" hidden></div>
+        </div>
+      </div>
+      <div class="crop-fields">
+        <label>左侧<input id="crop-x" type="number" min="0" inputmode="numeric" required></label>
+        <label>顶部<input id="crop-y" type="number" min="0" inputmode="numeric" required></label>
+        <label>宽度<input id="crop-width" type="number" min="1" inputmode="numeric" required></label>
+        <label>高度<input id="crop-height" type="number" min="1" inputmode="numeric" required></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="clear-crop" class="button" hidden>恢复原图</button>
+        <button type="button" class="button" data-close>取消</button>
+        <button type="submit" id="apply-crop" class="button primary">应用到整组</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

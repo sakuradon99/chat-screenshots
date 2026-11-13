@@ -1,0 +1,27 @@
+services:
+  oauth:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8101:4180"
+    env_file: oauth.env
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://auth.sakuradon.com
+      OAUTH2_PROXY_CLIENT_ID: chat-screenshots
+      OAUTH2_PROXY_REDIRECT_URL: https://chat-screenshots.sakuradon.com/oauth2/callback
+      OAUTH2_PROXY_SCOPE: "openid profile email"
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+      OAUTH2_PROXY_UPSTREAMS: http://chat-screenshots:8080/
+      OAUTH2_PROXY_PASS_HOST_HEADER: "false"
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE: "false"
+      OAUTH2_PROXY_COOKIE_NAME: __Host-chat_screenshots
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_REQUEST_LOGGING: "false"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

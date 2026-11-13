@@ -7,11 +7,9 @@ services:
       - "${BIND_IP:-0.0.0.0}:8100:8080"
     environment:
       CHAT_SCREENSHOTS_ACCESS_URL: "${CHAT_SCREENSHOTS_ACCESS_URL:-}"
+    user: "${DATA_UID:-1000}:${DATA_GID:-1000}"
     volumes:
-      - screenshots:/data
+      - ./data:/data
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-
-volumes:
-  screenshots:

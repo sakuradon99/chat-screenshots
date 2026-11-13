@@ -220,7 +220,7 @@ func (a *app) handler() http.Handler {
 		if value, _, err := net.SplitHostPort(host); err == nil {
 			host = value
 		}
-		if host != "localhost" && net.ParseIP(strings.Trim(host, "[]")) == nil {
+		if host != "localhost" && host != "chat-screenshots" && net.ParseIP(strings.Trim(host, "[]")) == nil {
 			writeError(w, invalid("请用 localhost 或电脑 IP 地址访问。"))
 			return
 		}

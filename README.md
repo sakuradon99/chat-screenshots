@@ -21,11 +21,15 @@
 
 ## Docker 部署
 
-在项目目录执行 `docker compose up -d --build`。服务通过主机的 `8100` 端口访问。截图和组信息存放在 Compose 的 `screenshots` 数据卷，容器重建后继续使用同一个卷。
+在项目目录创建 `data` 文件夹后执行 `docker compose up -d --build`。服务通过主机的 `8100` 端口访问。截图和组信息保存在主机的 `./data`，容器以 `DATA_UID:DATA_GID` 运行（默认 `1000:1000`），该用户需要对目录有写权限。
 
 可以在服务器的项目目录创建 `.env`，通过 `BIND_IP` 指定 Ubuntu 要监听的网卡地址。将 `CHAT_SCREENSHOTS_ACCESS_URL` 设为用户访问的完整 URL 后，页面的「手机访问」会显示这个地址。
 
-NAS 使用 `/volume1/docker/nginx` 下现有的 Nginx 容器。将 `deploy/nginx.conf.example` 保存为 `/volume1/docker/nginx/conf.d/chat-screenshots.conf`，按需调整域名、证书和上游地址。示例复用现有的 Authelia 配置。新增域名需要加入 Authelia 的双因素访问规则。
+启用 OAuth 时，在 Authelia 中注册要求双因素和 S256 PKCE 的 `chat-screenshots` OIDC 客户端，回调 URL 与 `compose.oauth.yaml` 一致。在仅部署账户可读的 `oauth.env` 中设置 `OAUTH2_PROXY_CLIENT_SECRET` 和 `OAUTH2_PROXY_COOKIE_SECRET`，然后运行：
+
+    docker compose -f compose.yaml -f compose.oauth.yaml up -d --build
+
+应用在主机的 `8100` 端口提供可信局域网直连。OAuth2 Proxy 在 `8101` 端口提供域名登录入口。只将 HTTPS 域名入口对外开放。NAS 使用 `/volume1/docker/nginx` 下现有的 Nginx 容器。将 `deploy/nginx.conf.example` 保存为 `/volume1/docker/nginx/conf.d/chat-screenshots.conf`，按需调整域名、证书和上游地址。
 
     docker exec nginx nginx -t
     docker exec nginx nginx -s reload

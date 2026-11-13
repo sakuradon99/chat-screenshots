@@ -22,6 +22,8 @@
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16m-14 0 1 13h10l1-13M9 7V4h6v3m-5 4v5m4-5v5"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-5 5 5-5 5 5"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14m-5-5 5 5 5-5"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
   </svg>
 
@@ -70,7 +72,10 @@
             <button type="button" id="edit" class="icon-button" aria-label="编辑截图组" title="编辑截图组"><svg class="icon"><use href="#i-edit"/></svg></button>
           </div>
         </div>
-        <button type="button" class="button" id="upload"><svg class="icon"><use href="#i-upload"/></svg>上传图片</button>
+        <div class="group-actions">
+          <button type="button" class="button" id="upload"><svg class="icon"><use href="#i-upload"/></svg>上传图片</button>
+          <button type="button" class="button danger" id="delete-group"><svg class="icon"><use href="#i-trash"/></svg>删除组</button>
+        </div>
         <input type="file" id="file-input" multiple accept="image/*,.heic,.heif" hidden>
       </div>
 
@@ -114,7 +119,6 @@
       <label for="date">日期</label>
       <input id="date" name="date" type="date" required>
       <div class="dialog-actions">
-        <button type="button" id="delete-group" class="button danger" hidden>删除组</button>
         <button type="button" class="button" data-close>取消</button>
         <button type="submit" class="button primary">保存</button>
       </div>
@@ -138,9 +142,36 @@
     </form>
   </dialog>
 
-  <dialog id="preview-dialog" class="preview-dialog">
-    <div class="dialog-head"><h2 id="preview-name">图片预览</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
-    <img id="preview-image" alt="">
+  <dialog id="preview-dialog" class="preview-dialog" aria-labelledby="preview-name">
+    <div class="preview-layout">
+      <div class="dialog-head">
+        <h2 id="preview-name">图片预览</h2>
+        <div class="preview-controls">
+          <button type="button" class="icon-button" id="preview-prev" aria-label="上一张" title="上一张（←）"><svg class="icon"><use href="#i-left"/></svg></button>
+          <span id="preview-count" class="preview-count" aria-live="polite"></span>
+          <button type="button" class="icon-button" id="preview-next" aria-label="下一张" title="下一张（→）"><svg class="icon"><use href="#i-right"/></svg></button>
+          <button type="button" class="icon-button" data-close aria-label="关闭" autofocus><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+      </div>
+      <div class="preview-stage"><img id="preview-image" alt=""></div>
+    </div>
+  </dialog>
+  <dialog id="upload-dialog" aria-labelledby="upload-title">
+    <form id="upload-form" class="dialog-body">
+      <div class="dialog-head"><h2 id="upload-title">确认上传顺序</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <label for="upload-sort">排序方式</label>
+      <select id="upload-sort">
+        <option value="name">文件名（数字按大小排列）</option>
+        <option value="time">文件修改时间（从早到晚）</option>
+        <option value="picked">系统返回顺序</option>
+        <option value="manual" hidden>手动调整</option>
+      </select>
+      <ol id="upload-list" class="upload-list"></ol>
+      <div class="dialog-actions">
+        <button type="button" class="button" data-close>取消</button>
+        <button type="submit" class="button primary" id="upload-submit">按此顺序上传</button>
+      </div>
+    </form>
   </dialog>
   <dialog id="crop-dialog" class="crop-dialog" aria-labelledby="crop-title">
     <form id="crop-form" class="dialog-body">

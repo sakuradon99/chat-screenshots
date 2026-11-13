@@ -15,6 +15,8 @@ let editID = null;
 let moveContext = null;
 let dragging = null;
 let upload = null;
+let uploadQueue = null;
+let preview = null;
 let toastTimer;
 let pendingOrder = false;
 let cropGroup = null;
@@ -146,6 +148,7 @@ function render() {
   if (group) picker.value = group.id;
   get("no-group").hidden = Boolean(group);
   get("workspace").hidden = !group;
+  if (preview) renderPreview();
   if (!group) return;
 
   get("group-title").textContent = group.name;
@@ -189,13 +192,7 @@ function renderImage(group, image, index) {
   preview.dataset.action = "preview";
   preview.setAttribute("aria-label", "查看 " + image.name);
   preview.append(picture);
-  preview.addEventListener("click", () => {
-    const enlarged = get("preview-image");
-    enlarged.src = picture.src;
-    enlarged.alt = image.name;
-    get("preview-name").textContent = image.name;
-    get("preview-dialog").showModal();
-  });
+  preview.addEventListener("click", () => openPreview(group, image));
 
   const position = element("button", "image-position", index + 1);
   position.type = "button";
@@ -261,6 +258,45 @@ function renderImage(group, image, index) {
   return card;
 }
 
+function openPreview(group, image) {
+  preview = { groupID: group.id, imageID: image.id };
+  renderPreview();
+  get("preview-dialog").showModal();
+}
+
+function previewSelection() {
+  const group = groups.find((entry) => entry.id === preview?.groupID);
+  const index = group?.images.findIndex((image) => image.id === preview.imageID) ?? -1;
+  return { group, index };
+}
+
+function renderPreview() {
+  const { group, index } = previewSelection();
+  if (index < 0) {
+    preview = null;
+    get("preview-dialog").close();
+    return;
+  }
+  const image = group.images[index];
+  const enlarged = get("preview-image");
+  const src = imagePath(group, image, true);
+  if (enlarged.getAttribute("src") !== src) enlarged.src = src;
+  enlarged.alt = image.name;
+  get("preview-name").textContent = image.name;
+  get("preview-count").textContent = (index + 1) + " / " + group.images.length;
+  get("preview-prev").disabled = index === 0;
+  get("preview-next").disabled = index === group.images.length - 1;
+}
+
+function stepPreview(offset) {
+  const { group, index } = previewSelection();
+  if (index < 0) return;
+  const next = group.images[index + offset];
+  if (!next) return;
+  preview.imageID = next.id;
+  renderPreview();
+}
+
 function finishDrag() {
   if (!dragging) return;
   dragging = null;
@@ -305,7 +341,6 @@ function showGroupForm(group) {
   get("group-dialog-title").textContent = group ? "编辑截图组" : "新建截图组";
   get("name").value = group?.name || "";
   get("date").value = group?.date || today();
-  get("delete-group").hidden = !group;
   get("group-dialog").showModal();
 }
 
@@ -329,14 +364,18 @@ async function saveGroup(event) {
 }
 
 async function deleteGroup() {
-  const group = groups.find((entry) => entry.id === editID);
+  const group = activeGroup();
   if (!group || !confirm("删除截图组「" + group.name + "」及组内全部图片？")) return;
+  const button = get("delete-group");
+  button.disabled = true;
   try {
     await api(groupPath(group.id), { method: "DELETE" });
-    get("group-dialog").close();
     await refresh(true);
+    notify("已删除截图组。");
   } catch (error) {
     notify(error.message);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -346,6 +385,76 @@ function updateUpload() {
   if (!status.hidden) status.textContent = "正在上传 " + upload.current + " / " + upload.total;
   get("upload").disabled = Boolean(upload);
   get("drop-empty").disabled = Boolean(upload);
+}
+
+const fileNameOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+function queueUpload(files) {
+  const group = activeGroup();
+  if (!group || upload || uploadQueue || files.length === 0) return;
+  if (files.length === 1) {
+    uploadFiles(group.id, files);
+    return;
+  }
+  uploadQueue = {
+    groupID: group.id,
+    entries: files.map((file, pickedIndex) => ({ file, pickedIndex, url: URL.createObjectURL(file) })),
+  };
+  const sort = get("upload-sort");
+  sort.value = "name";
+  sortUploadQueue(sort.value);
+  get("upload-dialog").showModal();
+}
+
+function sortUploadQueue(mode) {
+  const byName = (a, b) => fileNameOrder.compare(a.file.name, b.file.name) || a.pickedIndex - b.pickedIndex;
+  const { entries } = uploadQueue;
+  if (mode === "name") entries.sort(byName);
+  if (mode === "time") entries.sort((a, b) => a.file.lastModified - b.file.lastModified || byName(a, b));
+  if (mode === "picked") entries.sort((a, b) => a.pickedIndex - b.pickedIndex);
+  renderUploadQueue();
+}
+
+function renderUploadQueue() {
+  const list = get("upload-list");
+  const { entries } = uploadQueue;
+  const focus = document.activeElement;
+  const focusedEntry = focus?.closest("li")?.dataset.entry;
+  const focusedAction = focus?.dataset.action;
+  list.replaceChildren(...entries.map((entry, index) => {
+    const item = element("li");
+    item.dataset.entry = entry.pickedIndex;
+    const thumbnail = element("img");
+    thumbnail.alt = "";
+    thumbnail.loading = "lazy";
+    thumbnail.src = entry.url;
+    const name = element("span", "image-name", entry.file.name);
+    name.title = entry.file.name;
+    const up = iconButton("up", "前移 " + entry.file.name, () => moveQueuedFile(index, -1));
+    const down = iconButton("down", "后移 " + entry.file.name, () => moveQueuedFile(index, 1));
+    up.dataset.action = "up";
+    down.dataset.action = "down";
+    up.disabled = index === 0;
+    down.disabled = index === entries.length - 1;
+    item.append(element("span", "upload-position", index + 1), thumbnail, name, up, down);
+    return item;
+  }));
+  if (focusedEntry && focusedAction) {
+    const item = list.querySelector('[data-entry="' + focusedEntry + '"]');
+    const nextFocus = item?.querySelector('[data-action="' + focusedAction + '"]:not(:disabled)')
+      || item?.querySelector("button:not(:disabled)");
+    nextFocus?.focus();
+  }
+  get("upload-submit").textContent = "上传 " + entries.length + " 张";
+}
+
+function moveQueuedFile(index, offset) {
+  const { entries } = uploadQueue;
+  const other = index + offset;
+  if (!entries[other]) return;
+  [entries[index], entries[other]] = [entries[other], entries[index]];
+  get("upload-sort").value = "manual";
+  renderUploadQueue();
 }
 
 async function prepareImage(file) {
@@ -382,10 +491,9 @@ async function prepareImage(file) {
   }
 }
 
-async function uploadFiles(files) {
-  const group = activeGroup();
-  if (!group || upload || files.length === 0) return;
-  upload = { groupID: group.id, current: 0, total: files.length };
+async function uploadFiles(groupID, files) {
+  if (upload || files.length === 0) return;
+  upload = { groupID, current: 0, total: files.length };
   let done = 0;
   let firstError = "";
   try {
@@ -395,7 +503,7 @@ async function uploadFiles(files) {
       try {
         const body = await prepareImage(file);
         if (body.size > maxUploadBytes) throw new Error("单张图片不能超过 32 MB。");
-        await api(groupPath(group.id) + "/images?name=" + encodeURIComponent(file.name), {
+        await api(groupPath(groupID) + "/images?name=" + encodeURIComponent(file.name), {
           method: "POST",
           headers: { "Content-Type": "application/octet-stream" },
           body,
@@ -602,10 +710,22 @@ get("delete-group").addEventListener("click", deleteGroup);
 get("phone").addEventListener("click", showAccess);
 get("upload").addEventListener("click", () => fileInput.click());
 get("drop-empty").addEventListener("click", () => fileInput.click());
+get("upload-sort").addEventListener("change", (event) => sortUploadQueue(event.currentTarget.value));
+get("upload-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const { groupID, entries } = uploadQueue;
+  get("upload-dialog").close();
+  uploadFiles(groupID, entries.map((entry) => entry.file));
+});
+get("upload-dialog").addEventListener("close", () => {
+  for (const { url } of uploadQueue?.entries || []) URL.revokeObjectURL(url);
+  uploadQueue = null;
+  get("upload-list").replaceChildren();
+});
 fileInput.addEventListener("change", () => {
   const files = Array.from(fileInput.files);
   fileInput.value = "";
-  uploadFiles(files);
+  queueUpload(files);
 });
 widthInput.addEventListener("input", () => {
   if (widthInput.checkValidity()) localStorage.setItem("export-width", widthInput.value);
@@ -630,7 +750,17 @@ for (const dialog of document.querySelectorAll("dialog")) {
 for (const button of document.querySelectorAll("[data-close]")) {
   button.addEventListener("click", () => button.closest("dialog").close());
 }
-get("preview-dialog").addEventListener("close", () => get("preview-image").removeAttribute("src"));
+get("preview-prev").addEventListener("click", () => stepPreview(-1));
+get("preview-next").addEventListener("click", () => stepPreview(1));
+get("preview-dialog").addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  event.preventDefault();
+  stepPreview(event.key === "ArrowLeft" ? -1 : 1);
+});
+get("preview-dialog").addEventListener("close", () => {
+  preview = null;
+  get("preview-image").removeAttribute("src");
+});
 
 const zone = get("image-zone");
 zone.addEventListener("dragover", (event) => {
@@ -647,7 +777,7 @@ zone.addEventListener("drop", (event) => {
   if (!event.dataTransfer.types.includes("Files")) return;
   event.preventDefault();
   zone.classList.remove("drag-files");
-  uploadFiles(Array.from(event.dataTransfer.files));
+  queueUpload(Array.from(event.dataTransfer.files));
 });
 window.addEventListener("dragover", (event) => {
   if (event.dataTransfer.types.includes("Files")) event.preventDefault();

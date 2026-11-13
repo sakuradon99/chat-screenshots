@@ -25,12 +25,10 @@
 
 可以在服务器的项目目录创建 `.env`，通过 `BIND_IP` 指定 Ubuntu 要监听的网卡地址。将 `CHAT_SCREENSHOTS_ACCESS_URL` 设为用户访问的完整 URL 后，页面的「手机访问」会显示这个地址。
 
-NAS 可参考 `deploy/nginx.conf.example`，将监听地址改为 NAS 的局域网地址，`proxy_pass` 指向 Ubuntu 的 `8100`。将配置保存到 NAS 的 `~/chat-screenshots-nginx/nginx.conf` 后，在 NAS 上执行：
+NAS 使用 `/volume1/docker/nginx` 下现有的 Nginx 容器。将 `deploy/nginx.conf.example` 保存为 `/volume1/docker/nginx/conf.d/chat-screenshots.conf`，按需调整域名、证书和上游地址。示例复用现有的 Authelia 配置。新增域名需要加入 Authelia 的双因素访问规则。
 
-    nginx -t -e "$HOME/chat-screenshots-nginx/error.log" -p "$HOME/chat-screenshots-nginx/" -c nginx.conf
-    nginx -e "$HOME/chat-screenshots-nginx/error.log" -p "$HOME/chat-screenshots-nginx/" -c nginx.conf
-
-这会启动独立的 Nginx 实例。NAS 重启后可重新运行第二条命令，或通过 DSM 任务计划程序为该命令创建开机任务。
+    docker exec nginx nginx -t
+    docker exec nginx nginx -s reload
 
 ## 使用
 

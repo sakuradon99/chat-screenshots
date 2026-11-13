@@ -94,6 +94,11 @@
           <h2 id="images-title">图片顺序 <span id="image-count" class="image-count"></span></h2>
           <div class="image-tools">
             <p id="order-hint" hidden>拖动或点序号调整位置</p>
+            <select id="sort-images" class="button" aria-label="按图片名称排序" disabled>
+              <option value="" disabled selected>按名称排序</option>
+              <option value="asc">名称正序</option>
+              <option value="desc">名称倒序</option>
+            </select>
             <button type="button" class="button" id="crop-button" aria-describedby="crop-status" disabled><svg class="icon"><use href="#i-crop"/></svg><span>批量裁切</span></button>
           </div>
         </div>
@@ -155,23 +160,6 @@
       </div>
       <div class="preview-stage"><img id="preview-image" alt=""></div>
     </div>
-  </dialog>
-  <dialog id="upload-dialog" aria-labelledby="upload-title">
-    <form id="upload-form" class="dialog-body">
-      <div class="dialog-head"><h2 id="upload-title">确认上传顺序</h2><button class="icon-button" type="button" data-close aria-label="关闭"><svg class="icon"><use href="#i-close"/></svg></button></div>
-      <label for="upload-sort">排序方式</label>
-      <select id="upload-sort">
-        <option value="name">文件名（数字按大小排列）</option>
-        <option value="time">文件修改时间（从早到晚）</option>
-        <option value="picked">系统返回顺序</option>
-        <option value="manual" hidden>手动调整</option>
-      </select>
-      <ol id="upload-list" class="upload-list"></ol>
-      <div class="dialog-actions">
-        <button type="button" class="button" data-close>取消</button>
-        <button type="submit" class="button primary" id="upload-submit">按此顺序上传</button>
-      </div>
-    </form>
   </dialog>
   <dialog id="crop-dialog" class="crop-dialog" aria-labelledby="crop-title">
     <form id="crop-form" class="dialog-body">

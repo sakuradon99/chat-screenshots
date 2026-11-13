@@ -118,7 +118,7 @@ dialog::backdrop { background: #172f2862; }
 .dialog-head h2 { font-size: 19px; overflow-wrap: anywhere; }
 .dialog-body p { color: var(--muted); line-height: 1.6; }
 .dialog-body label { font-weight: 650; font-size: 13px; }
-.dialog-body input, .dialog-body select, #group-picker { min-width: 0; min-height: 42px; padding: 8px 10px; border: 1px solid #d2ddd2; border-radius: 8px; color: inherit; background: #fff; }
+.dialog-body input, #group-picker { min-width: 0; min-height: 42px; padding: 8px 10px; border: 1px solid #d2ddd2; border-radius: 8px; color: inherit; background: #fff; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .dialog-actions .danger { margin-right: auto; }
 .addresses { display: grid; gap: 8px; }
@@ -132,12 +132,9 @@ dialog::backdrop { background: #172f2862; }
 .preview-count { min-width: 45px; color: var(--muted); font-size: 12px; text-align: center; }
 .preview-stage { display: grid; place-items: center; min-width: 0; min-height: 0; padding: 4px; background: #eef3ed; }
 .preview-stage img { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
-.upload-list { min-height: 0; max-height: min(44vh, 390px); overflow: auto; margin: 0; padding: 0; list-style: none; }
-.upload-list li { display: grid; grid-template-columns: 2ch 38px minmax(0, 1fr) auto auto; align-items: center; gap: 7px; min-height: 49px; padding: 4px; border-bottom: 1px solid var(--line); }
-.upload-list img { width: 38px; height: 40px; object-fit: contain; background: #eef3ed; border-radius: 4px; }
-.upload-list .icon-button { width: 41px; height: 41px; }
-.upload-position { color: var(--muted); font-size: 12px; }
 .image-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+#sort-images { cursor: pointer; padding-inline: 10px; }
+#sort-images:disabled { cursor: default; opacity: .48; }
 .crop-status { margin: -5px 0 12px; color: var(--muted); font-size: 12px; }
 .crop-dialog { width: min(620px, calc(100% - 28px)); }
 .crop-stage { display: grid; justify-items: center; padding: 8px; border-radius: 8px; background: #eef3ed; }
@@ -167,6 +164,7 @@ dialog::backdrop { background: #172f2862; }
   .blank p { font-size: 14px; }
   .workspace-head { align-items: flex-start; flex-wrap: wrap; gap: 8px; }
   .group-actions .button { padding: 7px 9px; }
+  .images-head { flex-wrap: wrap; }
   .export-panel { margin: 15px 0 19px; padding: 9px; gap: 8px; }
   .export-meta { column-gap: 6px; row-gap: 4px; }
   .dimensions { flex-basis: 100%; }

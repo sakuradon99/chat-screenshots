@@ -5,6 +5,8 @@ const imageList = get("images");
 const widthInput = get("width");
 const fileInput = get("file-input");
 const exportButton = get("export");
+const sortImages = get("sort-images");
+const imageNameOrder = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 const maxExportPixels = 500_000_000;
 const maxUploadBytes = 32 * 1024 * 1024;
 
@@ -15,7 +17,6 @@ let editID = null;
 let moveContext = null;
 let dragging = null;
 let upload = null;
-let uploadQueue = null;
 let preview = null;
 let toastTimer;
 let pendingOrder = false;
@@ -303,12 +304,26 @@ function finishDrag() {
   render();
 }
 
-async function moveImage(group, from, to) {
-  if (pendingOrder || from === to || to < 0 || to >= group.images.length) return;
+function moveImage(group, from, to) {
+  if (from === to || to < 0 || to >= group.images.length) return;
   const ids = group.images.map((image) => image.id);
   const [moved] = ids.splice(from, 1);
   ids.splice(to, 0, moved);
+  return saveOrder(group, ids);
+}
+
+function sortGroupImages(direction) {
+  const group = activeGroup();
+  if (!group || group.images.length < 2 || upload) return;
+  const sorted = [...group.images].sort((a, b) => direction * imageNameOrder.compare(a.name, b.name));
+  if (sorted.every((image, index) => image.id === group.images[index].id)) return;
+  return saveOrder(group, sorted.map((image) => image.id));
+}
+
+async function saveOrder(group, ids) {
+  if (pendingOrder) return;
   pendingOrder = true;
+  updateSortControl();
   try {
     await send(groupPath(group.id) + "/order", "PUT", { revision: group.revision, ids });
     await refresh(true);
@@ -317,7 +332,12 @@ async function moveImage(group, from, to) {
     await refresh();
   } finally {
     pendingOrder = false;
+    updateSortControl();
   }
+}
+
+function updateSortControl() {
+  sortImages.disabled = pendingOrder || Boolean(upload) || (activeGroup()?.images.length ?? 0) < 2;
 }
 
 async function deleteImage(group, image) {
@@ -385,76 +405,7 @@ function updateUpload() {
   if (!status.hidden) status.textContent = "正在上传 " + upload.current + " / " + upload.total;
   get("upload").disabled = Boolean(upload);
   get("drop-empty").disabled = Boolean(upload);
-}
-
-const fileNameOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-
-function queueUpload(files) {
-  const group = activeGroup();
-  if (!group || upload || uploadQueue || files.length === 0) return;
-  if (files.length === 1) {
-    uploadFiles(group.id, files);
-    return;
-  }
-  uploadQueue = {
-    groupID: group.id,
-    entries: files.map((file, pickedIndex) => ({ file, pickedIndex, url: URL.createObjectURL(file) })),
-  };
-  const sort = get("upload-sort");
-  sort.value = "name";
-  sortUploadQueue(sort.value);
-  get("upload-dialog").showModal();
-}
-
-function sortUploadQueue(mode) {
-  const byName = (a, b) => fileNameOrder.compare(a.file.name, b.file.name) || a.pickedIndex - b.pickedIndex;
-  const { entries } = uploadQueue;
-  if (mode === "name") entries.sort(byName);
-  if (mode === "time") entries.sort((a, b) => a.file.lastModified - b.file.lastModified || byName(a, b));
-  if (mode === "picked") entries.sort((a, b) => a.pickedIndex - b.pickedIndex);
-  renderUploadQueue();
-}
-
-function renderUploadQueue() {
-  const list = get("upload-list");
-  const { entries } = uploadQueue;
-  const focus = document.activeElement;
-  const focusedEntry = focus?.closest("li")?.dataset.entry;
-  const focusedAction = focus?.dataset.action;
-  list.replaceChildren(...entries.map((entry, index) => {
-    const item = element("li");
-    item.dataset.entry = entry.pickedIndex;
-    const thumbnail = element("img");
-    thumbnail.alt = "";
-    thumbnail.loading = "lazy";
-    thumbnail.src = entry.url;
-    const name = element("span", "image-name", entry.file.name);
-    name.title = entry.file.name;
-    const up = iconButton("up", "前移 " + entry.file.name, () => moveQueuedFile(index, -1));
-    const down = iconButton("down", "后移 " + entry.file.name, () => moveQueuedFile(index, 1));
-    up.dataset.action = "up";
-    down.dataset.action = "down";
-    up.disabled = index === 0;
-    down.disabled = index === entries.length - 1;
-    item.append(element("span", "upload-position", index + 1), thumbnail, name, up, down);
-    return item;
-  }));
-  if (focusedEntry && focusedAction) {
-    const item = list.querySelector('[data-entry="' + focusedEntry + '"]');
-    const nextFocus = item?.querySelector('[data-action="' + focusedAction + '"]:not(:disabled)')
-      || item?.querySelector("button:not(:disabled)");
-    nextFocus?.focus();
-  }
-  get("upload-submit").textContent = "上传 " + entries.length + " 张";
-}
-
-function moveQueuedFile(index, offset) {
-  const { entries } = uploadQueue;
-  const other = index + offset;
-  if (!entries[other]) return;
-  [entries[index], entries[other]] = [entries[other], entries[index]];
-  get("upload-sort").value = "manual";
-  renderUploadQueue();
+  updateSortControl();
 }
 
 async function prepareImage(file) {
@@ -492,7 +443,7 @@ async function prepareImage(file) {
 }
 
 async function uploadFiles(groupID, files) {
-  if (upload || files.length === 0) return;
+  if (!groupID || upload || files.length === 0) return;
   upload = { groupID, current: 0, total: files.length };
   let done = 0;
   let firstError = "";
@@ -710,22 +661,15 @@ get("delete-group").addEventListener("click", deleteGroup);
 get("phone").addEventListener("click", showAccess);
 get("upload").addEventListener("click", () => fileInput.click());
 get("drop-empty").addEventListener("click", () => fileInput.click());
-get("upload-sort").addEventListener("change", (event) => sortUploadQueue(event.currentTarget.value));
-get("upload-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const { groupID, entries } = uploadQueue;
-  get("upload-dialog").close();
-  uploadFiles(groupID, entries.map((entry) => entry.file));
-});
-get("upload-dialog").addEventListener("close", () => {
-  for (const { url } of uploadQueue?.entries || []) URL.revokeObjectURL(url);
-  uploadQueue = null;
-  get("upload-list").replaceChildren();
+sortImages.addEventListener("change", () => {
+  const direction = sortImages.value;
+  sortImages.value = "";
+  if (direction) sortGroupImages(direction === "asc" ? 1 : -1);
 });
 fileInput.addEventListener("change", () => {
   const files = Array.from(fileInput.files);
   fileInput.value = "";
-  queueUpload(files);
+  uploadFiles(activeGroup()?.id, files);
 });
 widthInput.addEventListener("input", () => {
   if (widthInput.checkValidity()) localStorage.setItem("export-width", widthInput.value);
@@ -777,7 +721,7 @@ zone.addEventListener("drop", (event) => {
   if (!event.dataTransfer.types.includes("Files")) return;
   event.preventDefault();
   zone.classList.remove("drag-files");
-  queueUpload(Array.from(event.dataTransfer.files));
+  uploadFiles(activeGroup()?.id, Array.from(event.dataTransfer.files));
 });
 window.addEventListener("dragover", (event) => {
   if (event.dataTransfer.types.includes("Files")) event.preventDefault();
